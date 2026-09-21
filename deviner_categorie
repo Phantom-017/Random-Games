@@ -1,0 +1,31 @@
+import random
+
+categorie = ["Blond", 
+             "Sharingan", 
+             "Katana", 
+             "Ninja", 
+             "Pirate", 
+             "Dragon", 
+             "Vampire", 
+             "Zombie", 
+             "Robot", 
+             "Alien", 
+             "Superhero", 
+             "Wizard", 
+             "Knight", 
+             "Samurai", 
+             "Viking", 
+             "Cowboy", 
+             "Detective", 
+             "Spy", 
+             "Ghost", 
+             "Monster",
+             "Saiyan",
+             "Demon",
+             "Angel",
+             "Métis",
+             "Rinnegan",
+             "Ermite",
+             "Être légendaire"]
+
+print(random.choice(categorie))
