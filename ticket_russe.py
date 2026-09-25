@@ -7,5 +7,5 @@ while True:
     input("Appuyez sur Entrée pour tirer...")
     print("Vous avez tiré le numéro :", random_number)
     if random_number == kill_ticket:
-        print("BANG ! Vous êtes mort !")
+        print("FAAAAAAHHHHH ! T mor !")
         break

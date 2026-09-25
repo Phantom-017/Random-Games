@@ -2,11 +2,11 @@ import time
 import random
 
 # temps objectif en secondes
-target_time = random.randint(1, 34)
+target_time = random.randint(1, 19)
 print(f"Arrêter le chrono à {target_time} secondes.")
 
 # temps maximal en secondes
-max_time = 35
+max_time = 20
 print(f"Temps maximal : {max_time} secondes.")
 
 player_1_time = 0
