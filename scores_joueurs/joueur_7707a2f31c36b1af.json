@@ -12,7 +12,12 @@
   ],
   "fentes (par jambe)": [],
   "abdominaux": [],
-  "burpees": [],
+  "burpees": [
+    {
+      "nom": "Shwq",
+      "temps": 0.1
+    }
+  ],
   "mountain climbers (par jambe)": [],
   "jumping jacks": [],
   "gainage (secondes)": [],
@@ -22,6 +27,10 @@
   "dips sur une chaise": [],
   "fentes laterales (par jambe)": [],
   "ponts fessiers": [
+    {
+      "nom": "Shwq",
+      "temps": 0.11
+    },
     {
       "nom": "Shwq",
       "temps": 2.32
@@ -38,6 +47,10 @@
   ],
   "montees de genoux": [],
   "chaise contre un mur (secondes)": [
+    {
+      "nom": "Shwq",
+      "temps": 0.09
+    },
     {
       "nom": "Shwq",
       "temps": 1.99
