@@ -8,25 +8,50 @@
   "squats": [],
   "fentes (par jambe)": [],
   "abdominaux": [],
-  "burpees": [],
+  "burpees": [
+    {
+      "nom": "Phantom",
+      "temps": 6.5
+    }
+  ],
   "mountain climbers (par jambe)": [],
   "jumping jacks": [],
   "gainage (secondes)": [],
   "pompes diamants": [],
-  "pompes avec les mains larges": [],
+  "pompes avec les mains larges": [
+    {
+      "nom": "Phantom",
+      "temps": 7.5
+    }
+  ],
   "pompes pike": [],
   "dips sur une chaise": [],
   "fentes laterales (par jambe)": [],
   "ponts fessiers": [],
-  "elevations de mollets": [],
-  "levees de jambes": [],
+  "elevations de mollets": [
+    {
+      "nom": "Phantom",
+      "temps": 11.26
+    }
+  ],
+  "levees de jambes": [
+    {
+      "nom": "Phantom",
+      "temps": 7.75
+    }
+  ],
   "touche-epaules en planche": [
     {
       "nom": "Phantom",
       "temps": 6.94
     }
   ],
-  "superman": [],
+  "superman": [
+    {
+      "nom": "Phantom",
+      "temps": 11.28
+    }
+  ],
   "montees de genoux": [
     {
       "nom": "Phantom",
