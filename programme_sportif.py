@@ -64,6 +64,12 @@ def scores_vides():
 	return {exercice: [] for exercice in EXERCICES}
 
 
+def normaliser_nom(nom):
+	"""Nettoie un nom sans tenir compte des majuscules pour son identite."""
+	nom_nettoye = " ".join(nom.strip().split())
+	return nom_nettoye or "Anonyme"
+
+
 def normaliser_scores(scores):
 	"""Convertit les scores lus en format nom + temps."""
 	scores_normalises = scores_vides()
@@ -74,7 +80,7 @@ def normaliser_scores(scores):
 				try:
 					entrees.append(
 						{
-							"nom": entree.get("nom", "Ancien joueur"),
+							"nom": normaliser_nom(entree.get("nom", "Ancien joueur")),
 							"temps": float(entree["temps"]),
 						}
 					)
@@ -92,7 +98,8 @@ def normaliser_scores(scores):
 
 def fichier_joueur(nom):
 	"""Retourne un fichier stable sans mettre le pseudo dans le chemin."""
-	identifiant = hashlib.sha256(nom.strip().casefold().encode("utf-8")).hexdigest()[:16]
+	nom_normalise = normaliser_nom(nom)
+	identifiant = hashlib.sha256(nom_normalise.casefold().encode("utf-8")).hexdigest()[:16]
 	return DOSSIER_SCORES / f"joueur_{identifiant}.json"
 
 
@@ -229,7 +236,7 @@ def jouer():
 		return
 
 	nom_difficulte, nombre_defis = choix_difficulte
-	nom_joueur = input("Entre ton nom ou ton pseudo : ").strip() or "Anonyme"
+	nom_joueur = normaliser_nom(input("Entre ton nom ou ton pseudo : "))
 	scores = charger_scores(nom_joueur)
 
 	print("\n=== DEFIS POIDS DU CORPS ===")
