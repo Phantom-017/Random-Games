@@ -1,4 +1,5 @@
 import json
+import hashlib
 import random
 from pathlib import Path
 
@@ -6,34 +7,85 @@ from pathlib import Path
 TAILLE_GRILLE = 5
 NOMBRE_MANCHES = 10
 NOMBRE_TIRS = 3
-SCORES_FILE = Path(__file__).parent / "scores_joueurs" / "scores_tir_arcade.json"
+DOSSIER_SCORES = Path(__file__).with_name("scores_joueurs")
 
 
-def charger_scores():
-    if not SCORES_FILE.exists():
+def normaliser_nom(nom):
+    """Nettoie le pseudo sans tenir compte des majuscules pour son identite."""
+    nom_nettoye = " ".join(nom.strip().split())
+    return nom_nettoye or "Joueur"
+
+
+def fichier_joueur(nom):
+    """Retourne toujours le meme fichier pour un meme pseudo."""
+    nom_normalise = normaliser_nom(nom)
+    identifiant = hashlib.sha256(
+        nom_normalise.casefold().encode("utf-8")
+    ).hexdigest()[:16]
+    return DOSSIER_SCORES / f"joueur_{identifiant}.json"
+
+
+def normaliser_scores(scores):
+    scores_normalises = []
+    if not isinstance(scores, list):
+        return scores_normalises
+
+    for entree in scores:
+        if not isinstance(entree, dict) or "score" not in entree:
+            continue
+        try:
+            scores_normalises.append(
+                {
+                    "nom": normaliser_nom(entree.get("nom", "Joueur")),
+                    "score": int(entree["score"]),
+                }
+            )
+        except (TypeError, ValueError):
+            continue
+
+    return sorted(scores_normalises, key=lambda entree: entree["score"], reverse=True)[:3]
+
+
+def charger_scores(nom):
+    fichier_scores = fichier_joueur(nom)
+    if not fichier_scores.exists():
         return []
 
     try:
-        with SCORES_FILE.open("r", encoding="utf-8") as fichier:
-            scores = json.load(fichier)
+        with fichier_scores.open("r", encoding="utf-8") as fichier:
+            return normaliser_scores(json.load(fichier))
     except (json.JSONDecodeError, OSError):
         return []
 
-    return scores if isinstance(scores, list) else []
+
+def charger_scores_partages():
+    scores = []
+    if not DOSSIER_SCORES.exists():
+        return scores
+
+    for fichier_scores in DOSSIER_SCORES.glob("joueur_*.json"):
+        try:
+            with fichier_scores.open("r", encoding="utf-8") as fichier:
+                scores.extend(normaliser_scores(json.load(fichier)))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return sorted(scores, key=lambda entree: entree["score"], reverse=True)[:3]
 
 
 def sauvegarder_score(nom, score):
-    scores = charger_scores()
+    nom = normaliser_nom(nom)
+    scores = charger_scores(nom)
     scores.append({"nom": nom, "score": score})
-    scores.sort(key=lambda entree: entree["score"], reverse=True)
+    scores = normaliser_scores(scores)
 
-    SCORES_FILE.parent.mkdir(exist_ok=True)
-    with SCORES_FILE.open("w", encoding="utf-8") as fichier:
-        json.dump(scores[:10], fichier, indent=2, ensure_ascii=False)
+    DOSSIER_SCORES.mkdir(exist_ok=True)
+    with fichier_joueur(nom).open("w", encoding="utf-8") as fichier:
+        json.dump(scores, fichier, indent=2, ensure_ascii=False)
 
 
 def afficher_scores():
-    scores = charger_scores()
+    scores = charger_scores_partages()
     print("\n=== MEILLEURS SCORES ===")
 
     if not scores:
