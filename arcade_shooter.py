@@ -112,7 +112,7 @@ class TouhouShooter:
         self.game_over = False
         self.spawn_timer = 0
         self.fire_cooldown = 0.0
-        self.shoot_hold_timer = 0.0
+        self.auto_fire = False
         self.enemy_speed = 2
         self.held = {"left": False, "right": False, "up": False, "down": False, "shoot": False}
 
@@ -177,8 +177,7 @@ class TouhouShooter:
         elif key in (curses.KEY_DOWN, ord("j"), ord("J"), ord("s"), ord("S")):
             self.player_y += 3
         elif key == ord(" "):
-            self.shoot_hold_timer = 0.25
-            self.fire()
+            self.auto_fire = not self.auto_fire
         elif key in (ord("a"), ord("A"), ord("x"), ord("X")):
             self.fire()
         elif key in (ord("q"), ord("Q")):
@@ -189,7 +188,7 @@ class TouhouShooter:
 
     def set_held_false(self):
         self.held = {"left": False, "right": False, "up": False, "down": False, "shoot": False}
-        self.shoot_hold_timer = 0.0
+        self.auto_fire = False
 
     def move_player(self, dt):
         return
@@ -261,9 +260,10 @@ class TouhouShooter:
         self.move_player(dt)
 
         self.fire_cooldown = max(0, self.fire_cooldown - dt)
-        self.shoot_hold_timer = max(0, self.shoot_hold_timer - dt)
-        if self.shoot_hold_timer > 0:
+        
+        if self.auto_fire:
             self.fire()
+
         difficulty = self.get_difficulty_stats()
 
         self.spawn_timer -= dt
