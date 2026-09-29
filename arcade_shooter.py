@@ -193,7 +193,7 @@ class TouhouShooter:
 
     def get_difficulty(self):
         if self.score >= 600:
-            return 7, "Difficulté secrète"
+            return 7, "WHOOO AAAARRREEEE YOOOUUUUU !!!!!!!"
         if self.score >= 500:
             return 6, "Difficulté secrète"
         level = min(5, (self.score // 100) + 1)
@@ -375,6 +375,9 @@ class TouhouShooter:
 
             if difficulty >= 6:
                 self.stdscr.addstr(1, 0, "Mode secret : quasi impossible !", curses.A_BOLD)
+
+            if difficulty >= 7:
+                            self.stdscr.addstr(1, 0, "NAN LÀ TU PEUX PAS !", curses.A_BOLD)
 
             for bullet_x, bullet_y in self.bullets:
                 if 0 <= bullet_y < self.height and 0 <= bullet_x < self.width:
