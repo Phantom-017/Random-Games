@@ -166,5 +166,3 @@ def main_menu():
             break
         else:
             print("Choix invalide. Entre 1, 2 ou 3.\n")
-
-# Lancement d'une partie inifnie
