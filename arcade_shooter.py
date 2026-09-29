@@ -4,8 +4,6 @@ import time
 from pathlib import Path
 
 SCORES_FILE = Path(__file__).resolve().parent / "scores_joueurs" / "arcade_shooter_scores.txt"
-RANK_NAMES = ("Bronze", "Argent", "Or", "Platine", "Jade", "Améthyste", "Diamant")
-
 
 def load_scores():
     path = SCORES_FILE
@@ -77,23 +75,12 @@ class TouhouShooter:
                 pass
             if curses.COLORS >= 256:
                 colors = {
-                    1: 130,
-                    2: 250,
-                    3: 220,
-                    4: 87,
-                    5: 35,
-                    6: 135,
-                    7: 39,
+                    1: 130, 2: 250, 3: 220, 4: 87, 5: 35, 6: 135, 7: 39,
                 }
             else:
                 colors = {
-                    1: curses.COLOR_RED,
-                    2: curses.COLOR_WHITE,
-                    3: curses.COLOR_YELLOW,
-                    4: curses.COLOR_CYAN,
-                    5: curses.COLOR_GREEN,
-                    6: curses.COLOR_MAGENTA,
-                    7: curses.COLOR_BLUE,
+                    1: curses.COLOR_RED, 2: curses.COLOR_WHITE, 3: curses.COLOR_YELLOW,
+                    4: curses.COLOR_CYAN, 5: curses.COLOR_GREEN, 6: curses.COLOR_MAGENTA, 7: curses.COLOR_BLUE,
                 }
             for rank, color in colors.items():
                 curses.init_pair(rank, color, background)
@@ -105,6 +92,13 @@ class TouhouShooter:
         self.height, self.width = self.stdscr.getmaxyx()
         self.player_x = max(2, min(self.width // 2, self.width - 3))
         self.player_y = max(2, min(self.height - 3, self.height - 3))
+        
+        # Système de lissage de mouvement
+        self.move_dx = 0
+        self.move_dy = 0
+        self.move_grace = 0.0
+        self.move_tick = 0.0
+        
         self.bullets = []
         self.enemies = []
         self.score = 0
@@ -114,7 +108,6 @@ class TouhouShooter:
         self.fire_cooldown = 0.0
         self.auto_fire = False
         self.enemy_speed = 2
-        self.held = {"left": False, "right": False, "up": False, "down": False, "shoot": False}
 
     def start_game(self):
         self.reset_game()
@@ -168,14 +161,15 @@ class TouhouShooter:
             self.running = False
 
     def handle_playing_input(self, key):
+        dx, dy = 0, 0
         if key in (curses.KEY_LEFT, ord("h"), ord("H")):
-            self.player_x -= 3
+            dx = -3
         elif key in (curses.KEY_RIGHT, ord("l"), ord("L"), ord("d"), ord("D")):
-            self.player_x += 3
+            dx = 3
         elif key in (curses.KEY_UP, ord("k"), ord("K"), ord("z"), ord("Z"), ord("w"), ord("W")):
-            self.player_y -= 3
+            dy = -3
         elif key in (curses.KEY_DOWN, ord("j"), ord("J"), ord("s"), ord("S")):
-            self.player_y += 3
+            dy = 3
         elif key == ord(" "):
             self.auto_fire = not self.auto_fire
         elif key in (ord("a"), ord("A"), ord("x"), ord("X")):
@@ -183,15 +177,19 @@ class TouhouShooter:
         elif key in (ord("q"), ord("Q")):
             self.state = "menu"
 
-        self.player_x = int(max(2, min(self.player_x, self.width - 3)))
-        self.player_y = int(max(2, min(self.player_y, self.height - 3)))
-
-    def set_held_false(self):
-        self.held = {"left": False, "right": False, "up": False, "down": False, "shoot": False}
-        self.auto_fire = False
-
-    def move_player(self, dt):
-        return
+        # Gestion intelligente du mouvement continu
+        if dx != 0 or dy != 0:
+            if self.move_dx != dx or self.move_dy != dy:
+                self.move_tick = 0
+                
+            self.move_dx = dx
+            self.move_dy = dy
+            self.move_grace = 0.35 
+            
+            if self.move_tick <= 0:
+                self.player_x += dx
+                self.player_y += dy
+                self.move_tick = 0.04 
 
     def get_difficulty(self):
         if self.score >= 600:
@@ -199,29 +197,50 @@ class TouhouShooter:
         if self.score >= 500:
             return 6, "Difficulté secrète"
         level = min(5, (self.score // 100) + 1)
-        labels = {
-            1: "Niveau 1",
-            2: "Niveau 2",
-            3: "Niveau 3",
-            4: "Niveau 4",
-            5: "Niveau 5",
-        }
+        labels = {1: "Niveau 1", 2: "Niveau 2", 3: "Niveau 3", 4: "Niveau 4", 5: "Niveau 5"}
         return level, labels.get(level, "Niveau 5")
+
+    def apply_font(self, text, rank):
+        normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        fonts = {
+            1: "𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓𝔔ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ𝔞𝔟𝔠𝔡𝔢𝔣𝔤𝔥𝔦𝔧𝔨𝔩𝔪𝔫𝔬𝔭𝔮𝔯𝔰𝔱𝔲𝔳𝔴𝔵𝔶𝔷",
+            2: "𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵𝒶𝒷𝒸𝒹ℯ𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃ℴ𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏",
+            3: "𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩𝓪𝓫𝓬𝓭𝓮𝓯𝓰𝓱𝓲𝓳𝓴𝓵𝓶𝓷𝓸𝓹𝓺𝓻𝓼𝓽𝓾𝓿𝔀𝔁𝔂𝔃",
+            4: "𝘼𝘽𝘾𝘿𝙀𝙁𝙂𝙃𝙄𝙅𝙆𝙇𝙈𝙉𝙊𝙋𝙌𝙍𝙎𝙏𝙐𝙑𝙒𝙓𝙔𝙕𝙖𝙗𝙘𝙙𝙚𝙛𝙜𝙝𝙞𝙟𝙠𝙡𝙢𝙣𝙤𝙥𝙦𝙧𝙨𝙩𝙪𝙫𝙬𝙭𝙮𝙯",
+            5: "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫",
+            6: "𝑨𝑩𝑪𝑫𝑬𝑭𝑮𝑯𝑰𝑱𝑲𝑳𝑴𝑵𝑶𝑷𝑸𝑹𝑺𝑻𝑼𝑽𝑾𝑿𝒀𝒁𝒂𝒃𝒄𝒅𝒆𝒇𝒈𝒉𝒊𝒋𝒌𝒍𝒎𝒏𝒐𝒑𝒒𝒓𝒔𝒕𝒖𝒗𝒘𝒙𝒚𝒛",
+            7: "𝕬𝕭𝕮𝕯𝕰𝕱𝕲𝕳𝕴𝕵𝕶𝕷𝕸𝕹𝕺𝕻𝕼𝕽𝕾𝕿𝖀𝖁𝖂𝖃𝖄𝖅𝖆𝖇𝖈𝖉𝖊𝖋𝖌𝖍𝖎𝖏𝖐𝖑𝖒𝖓𝖔𝖕𝖖𝖗𝖘𝖙𝖚𝖛𝖜𝖝𝖞𝖟"
+        }
+        return text.translate(str.maketrans(normal, fonts.get(rank, normal)))
 
     def get_rank(self, score=None):
         score = self.score if score is None else score
-        rank = min(len(RANK_NAMES), (score // 100) + 1)
-        return rank, RANK_NAMES[rank - 1]
+        rank = min(7, (score // 100) + 1)
+        
+        styled_names = {
+            1: "𝔅𝔯𝔬𝔫𝔷𝔢",
+            2: "𝒜𝓇𝑔𝑒𝓃𝓉",
+            3: "𝓞𝓻",
+            4: "𝙋𝙡𝙖𝙩𝙞𝙣𝙚",
+            5: "𝕁𝕒𝕕𝕖",
+            6: "𝑨𝒎𝒆́𝒕𝒉𝒚𝒔𝒕𝒆",
+            7: "✧ 𝕯𝖎𝖆𝖒𝖆𝖓𝖙 ✧"
+        }
+        
+        pseudo_decors = {
+            1: "< {} >", 2: "« {} »", 3: "★ {} ★", 
+            4: "♆ {} ♆", 5: "❂ {} ❂", 6: "⟡ {} ⟡", 7: "♛ {} ♛"
+        }
+        return rank, styled_names.get(rank, "Normal"), pseudo_decors.get(rank, "{}")
 
     def get_rank_style(self, score=None):
-        rank, name = self.get_rank(score)
+        rank, name, decor = self.get_rank(score)
         style = self.rank_color_pairs.get(rank, curses.A_NORMAL)
         style |= self.rank_text_styles.get(rank, curses.A_NORMAL)
-        return rank, name, style
+        return rank, name, decor, style
 
     def get_difficulty_stats(self):
         level, label = self.get_difficulty()
-
         if level >= 6:
             return {
                 "label": label,
@@ -229,7 +248,6 @@ class TouhouShooter:
                 "spawn_delay": max(0.08, 0.55 - (self.score / 2500)),
                 "enemy_speed": 2.4 + (self.score / 150) + ((level - 6) * 0.5),
             }
-
         base = {
             1: {"spawn_count": 1, "spawn_delay": 0.95, "enemy_speed": 1.1},
             2: {"spawn_count": 1, "spawn_delay": 0.8, "enemy_speed": 1.5},
@@ -256,17 +274,30 @@ class TouhouShooter:
         self.enemies.append([int(x), 1])
 
     def update_game(self):
-        dt = 0.05
-        self.move_player(dt)
+        dt_real = 0.016 
+        
+        if self.move_grace > 0:
+            self.move_grace -= dt_real
+            self.move_tick -= dt_real
+            if self.move_tick <= 0:
+                self.player_x += self.move_dx
+                self.player_y += self.move_dy
+                self.move_tick = 0.04 
+        else:
+            self.move_dx = 0
+            self.move_dy = 0
 
-        self.fire_cooldown = max(0, self.fire_cooldown - dt)
+        self.player_x = int(max(2, min(self.player_x, self.width - 3)))
+        self.player_y = int(max(2, min(self.player_y, self.height - 3)))
+
+        dt_game = 0.05
+        self.fire_cooldown = max(0, self.fire_cooldown - dt_game)
         
         if self.auto_fire:
             self.fire()
 
         difficulty = self.get_difficulty_stats()
-
-        self.spawn_timer -= dt
+        self.spawn_timer -= dt_game
         if self.spawn_timer <= 0:
             for _ in range(max(1, min(6, difficulty["spawn_count"]))):
                 self.spawn_enemy()
@@ -290,8 +321,8 @@ class TouhouShooter:
                 self.lives -= 1
                 if self.lives <= 0:
                     self.state = "game_over"
+                    self.auto_fire = False
                     self.add_score()
-                    self.set_held_false()
                     return
 
         for bullet in self.bullets[:]:
@@ -314,8 +345,10 @@ class TouhouShooter:
                 self.stdscr.addstr(7, 6, "Aucun score pour le moment.")
             else:
                 for index, (pseudo, score) in enumerate(self.high_scores):
-                    _, rank_name, rank_style = self.get_rank_style(score)
-                    line = f"{index + 1}. [{rank_name}] {pseudo} - {score}"
+                    rank, rank_name, decor, rank_style = self.get_rank_style(score)
+                    font_pseudo = self.apply_font(pseudo, rank)
+                    styled_pseudo = decor.format(font_pseudo)
+                    line = f"{index + 1}. [{rank_name}] {styled_pseudo} - {score} pts"
                     self.stdscr.addstr(7 + index * 2, 6, line, rank_style)
 
             for index, option in enumerate(self.menu_options):
@@ -332,10 +365,15 @@ class TouhouShooter:
         try:
             self.stdscr.erase()
             difficulty, label = self.get_difficulty()
-            _, rank_name, rank_style = self.get_rank_style()
-            self.stdscr.addstr(0, 0, f"Score : {self.score}   Vies : {self.lives}   Niveau : {label} ({rank_name})", rank_style)
+            rank, rank_name, decor, rank_style = self.get_rank_style()
+            
+            font_pseudo = self.apply_font(self.player_name, rank)
+            styled_pseudo = decor.format(font_pseudo)
+            
+            hud_text = f"Score : {self.score}   Vies : {self.lives}   Joueur : {styled_pseudo}   Niveau : {label} ({rank_name})"
+            self.stdscr.addstr(0, 0, hud_text, rank_style)
 
-            if difficulty == 6:
+            if difficulty >= 6:
                 self.stdscr.addstr(1, 0, "Mode secret : quasi impossible !", curses.A_BOLD)
 
             for bullet_x, bullet_y in self.bullets:
@@ -356,10 +394,16 @@ class TouhouShooter:
             self.stdscr.erase()
             title = "Game Over"
             self.stdscr.addstr(2, max(0, self.width // 2 - len(title) // 2), title, curses.A_BOLD)
-            self.stdscr.addstr(5, 6, f"Score final : {self.score}")
-            self.stdscr.addstr(8, 6, "R : rejouer")
-            self.stdscr.addstr(10, 6, "M : menu")
-            self.stdscr.addstr(12, 6, "Q : quitter")
+            
+            rank, rank_name, decor, rank_style = self.get_rank_style()
+            font_pseudo = self.apply_font(self.player_name, rank)
+            styled_pseudo = decor.format(font_pseudo)
+            
+            self.stdscr.addstr(5, 6, f"Joueur : {styled_pseudo}", rank_style)
+            self.stdscr.addstr(6, 6, f"Score final : {self.score} pts", rank_style)
+            self.stdscr.addstr(9, 6, "R : rejouer")
+            self.stdscr.addstr(11, 6, "M : menu")
+            self.stdscr.addstr(13, 6, "Q : quitter")
             self.stdscr.refresh()
         except curses.error:
             pass
@@ -375,7 +419,6 @@ class TouhouShooter:
                     self.handle_playing_input(key)
                 elif self.state == "game_over":
                     self.handle_game_over_input(key)
-
                 key = self.stdscr.getch()
 
             if self.state == "menu":
