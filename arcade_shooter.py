@@ -3,7 +3,62 @@ import random
 import time
 from pathlib import Path
 
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
+
 SCORES_FILE = Path(__file__).resolve().parent / "scores_joueurs" / "arcade_shooter_scores.txt"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+SPRITE_FILES = {
+    "player": ASSETS_DIR / "shooter.gif",
+    "bullet": ASSETS_DIR / "bullet.gif"
+    if (ASSETS_DIR / "bullet.gif").exists()
+    else ASSETS_DIR / "bullet.png",
+    "enemy": ASSETS_DIR / "ennemies.gif",
+}
+
+
+def load_sprite_frames(path, size=None):
+    if Image is None or not path.exists():
+        return []
+
+    frames = []
+    with Image.open(path) as image:
+        for frame_index in range(getattr(image, "n_frames", 1)):
+            image.seek(frame_index)
+            frame = image.convert("RGBA")
+            visible_bounds = frame.getchannel("A").getbbox()
+            if visible_bounds is not None:
+                frame = frame.crop(visible_bounds)
+            if size is not None:
+                frame = frame.resize(size, getattr(Image, "Resampling", Image).NEAREST)
+            width, height = frame.size
+            rows = []
+            for y in range(height):
+                row = []
+                for x in range(width):
+                    red, green, blue, alpha = frame.getpixel((x, y))
+                    if alpha < 80:
+                        row.append((" ", 0))
+                        continue
+                    brightness = (red + green + blue) / 3
+                    if brightness < 50:
+                        color = curses.COLOR_BLUE
+                    elif red > green * 1.35 and red > blue * 1.25:
+                        color = curses.COLOR_RED
+                    elif green > red * 1.25 and green > blue * 1.15:
+                        color = curses.COLOR_GREEN
+                    elif blue > red * 1.25 and blue > green * 1.15:
+                        color = curses.COLOR_CYAN
+                    elif brightness > 190:
+                        color = curses.COLOR_WHITE
+                    else:
+                        color = curses.COLOR_YELLOW
+                    row.append(("█", color))
+                rows.append(row)
+            frames.append(rows)
+    return frames
 
 def load_scores():
     path = SCORES_FILE
@@ -54,6 +109,12 @@ class TouhouShooter:
             7: curses.A_BOLD | italic | curses.A_BLINK,
         }
         self.setup_rank_colors()
+        self.setup_sprite_colors()
+        self.sprites = {
+            "player": load_sprite_frames(SPRITE_FILES["player"], (5, 4)),
+            "bullet": load_sprite_frames(SPRITE_FILES["bullet"], (1, 3)),
+            "enemy": load_sprite_frames(SPRITE_FILES["enemy"], (3, 3)),
+        }
         self.high_scores = load_scores()
         self.state = "menu"
         self.menu_index = 0
@@ -87,6 +148,22 @@ class TouhouShooter:
                 self.rank_color_pairs[rank] = curses.color_pair(rank)
         except curses.error:
             self.rank_color_pairs = {}
+
+    def setup_sprite_colors(self):
+        self.sprite_color_pairs = {}
+        if not curses.has_colors():
+            return
+        try:
+            for index, color in enumerate(
+                (curses.COLOR_RED, curses.COLOR_GREEN, curses.COLOR_YELLOW,
+                 curses.COLOR_BLUE, curses.COLOR_MAGENTA, curses.COLOR_CYAN,
+                 curses.COLOR_WHITE),
+                start=8,
+            ):
+                curses.init_pair(index, color, -1)
+                self.sprite_color_pairs[color] = curses.color_pair(index)
+        except curses.error:
+            self.sprite_color_pairs = {}
 
     def reset_game(self):
         self.height, self.width = self.stdscr.getmaxyx()
@@ -270,7 +347,7 @@ class TouhouShooter:
         self.fire_cooldown = 0.12
 
     def spawn_enemy(self):
-        x = random.randint(2, self.width - 3)
+        x = random.randint(2, max(2, self.width - 4))
         self.enemies.append([int(x), 1])
 
     def update_game(self):
@@ -316,7 +393,7 @@ class TouhouShooter:
                 self.enemies.remove(enemy)
                 continue
 
-            if int(enemy[1]) >= int(self.player_y) and abs(int(enemy[0]) - int(self.player_x)) <= 2:
+            if int(enemy[1]) >= int(self.player_y) - 1 and abs(int(enemy[0]) - int(self.player_x)) <= 2:
                 self.enemies.remove(enemy)
                 self.lives -= 1
                 if self.lives <= 0:
@@ -327,7 +404,7 @@ class TouhouShooter:
 
         for bullet in self.bullets[:]:
             for enemy in self.enemies[:]:
-                if abs(int(bullet[0]) - int(enemy[0])) <= 1 and abs(int(bullet[1]) - int(enemy[1])) <= 1:
+                if abs(int(bullet[0]) - int(enemy[0])) <= 2 and abs(int(bullet[1]) - int(enemy[1])) <= 1:
                     self.bullets.remove(bullet)
                     self.enemies.remove(enemy)
                     self.score += 10
@@ -380,17 +457,34 @@ class TouhouShooter:
                             self.stdscr.addstr(1, 0, "NAN LÀ TU PEUX PAS !", curses.A_BOLD)
 
             for bullet_x, bullet_y in self.bullets:
-                if 0 <= bullet_y < self.height and 0 <= bullet_x < self.width:
-                    self.stdscr.addch(bullet_y, bullet_x, ord("|"))
+                self.draw_sprite("bullet", bullet_x, bullet_y)
 
             for enemy_x, enemy_y in self.enemies:
-                if 0 <= enemy_y < self.height and 0 <= enemy_x < self.width:
-                    self.stdscr.addch(enemy_y, enemy_x, ord("V"))
+                self.draw_sprite("enemy", enemy_x, enemy_y)
 
-            self.stdscr.addstr(self.player_y, self.player_x, "A")
+            self.draw_sprite("player", self.player_x, self.player_y)
             self.stdscr.refresh()
         except curses.error:
             pass
+
+    def draw_sprite(self, name, x, y):
+        frames = self.sprites.get(name, [])
+        if not frames:
+            fallback = {"player": "A", "bullet": "|", "enemy": "V"}[name]
+            if 0 <= y < self.height and 0 <= x < self.width:
+                self.stdscr.addch(y, x, ord(fallback))
+            return
+
+        frame = frames[int(time.monotonic() * 8) % len(frames)]
+        for row_index, row in enumerate(frame):
+            screen_y = int(y) + row_index
+            if not 0 <= screen_y < self.height:
+                continue
+            for column_index, (character, color) in enumerate(row):
+                screen_x = int(x) + column_index
+                if character != " " and 0 <= screen_x < self.width:
+                    style = self.sprite_color_pairs.get(color, curses.A_NORMAL)
+                    self.stdscr.addstr(screen_y, screen_x, character, style)
 
     def render_game_over(self):
         try:
